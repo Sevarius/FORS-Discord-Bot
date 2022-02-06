@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <RootNamespace>DiscordServices</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Discord.Net" Version="2.4.0" />
+      <PackageReference Include="Discord.Net.Core" Version="2.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\BambooServices\BambooServices.csproj" />
+      <ProjectReference Include="..\..\ORM\ORM.csproj" />
+      <ProjectReference Include="..\..\PluginLoader\PluginLoader.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Services\BambooServices\BambooServices.csproj" />
+      <ProjectReference Include="..\Common\Common.csproj" />
+      <ProjectReference Include="..\Contract\Contract.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Discord.Net.WebSocket" Version="2.4.0" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0-preview.1.21102.12" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0-preview.1.21102.12" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0-preview.1.21102.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Interface" />
+    </ItemGroup>
+
+</Project>

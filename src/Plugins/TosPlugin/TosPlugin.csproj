@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <Company>TosPlugin</Company>
+        <Product>TosPlugin</Product>
+        <EnableDynamicLoading>true</EnableDynamicLoading>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Services\BambooServices\BambooServices.csproj" />
+      <ProjectReference Include="..\..\Contract\Contract.csproj" />
+      <ProjectReference Include="..\..\ORM\ORM.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="AngleSharp" Version="1.0.0-alpha-844" />
+    </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+        <Exec Command="xcopy $(OutDir)$(TargetFileName) $(SolutionDir)Plugins\Tos\ /Y" />
+    </Target>
+
+</Project>

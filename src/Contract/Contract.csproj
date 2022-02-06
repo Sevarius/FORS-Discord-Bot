@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <PackageId>ForsDiscordBotContract</PackageId>
+        <Title>Contract for discord bot in FORS</Title>
+        <Authors>Vsevolod Mozgovoy</Authors>
+        <Description>Contract to build your own plugin for Discord bot in OOO"FORS"</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Discord.Net.Commands" Version="2.4.0" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0-preview.1.21102.12" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0-preview.1.21102.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    </ItemGroup>
+
+</Project>
