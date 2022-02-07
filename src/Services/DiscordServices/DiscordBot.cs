@@ -107,9 +107,9 @@ namespace DiscordServices
                 
                 if (pluginName == null)
                 {
-                    _logger.LogWarning($"Для сервера {channel.Name} не указано имя плагина в базе данных");
+                    _logger.LogWarning($"Для сервера {channel.GuildId} не указано имя плагина в базе данных");
                     await message.ReplyAsync(
-                        $"Для данного {channel.Name} не установлена связь с плагином. Проверьте наличия имени плагина для вашего сервера в БД");
+                        $"Для данного сервера не установлена связь с плагином. Проверьте наличия имени плагина для вашего сервера в БД");
                 }
 
                 Console.WriteLine($"Вызвана команда: {pluginName} - {message.Content}");

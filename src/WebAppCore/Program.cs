@@ -17,6 +17,7 @@ namespace WebAppCore
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
-                }).UseWindowsService();
+                })
+                .UseWindowsService();
     }
 }
