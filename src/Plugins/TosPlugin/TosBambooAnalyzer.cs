@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using BambooServices;
 using Contract.Bamboo;
 using Contract.Interfaces;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using ORM;
+using Polly;
 
 namespace TosPlugin
 {
@@ -29,28 +33,45 @@ namespace TosPlugin
 
         public override Task BuildStart(string planName)
         {
-            var plan = _planRepository.GetPlanInfo(planName);
+            var res = Policy
+                .Handle<SqliteException>()
+                .WaitAndRetry(3, x => TimeSpan.FromSeconds(2))
+                .Execute(() => BuildStartFunction(planName));
+            return res;
+        }
+
+        private Task BuildStartFunction(string planName)
+        {
+            using var db = _serviceProvider.GetService<MainContext>();
+            using var tr = db.Database.BeginTransaction(IsolationLevel.Serializable);
+            var plan = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == planName);
 
             if (plan == null)
             {
+                tr.Commit();
                 WriteMessageToMainChannel($"Сборка плана {planName} начата");
                 return Task.CompletedTask;
             }
 
             plan.BuildStartCount += 1;
-            _planRepository.UpdatePlan(plan);
+            db.SaveChanges();
 
             switch (planName)
             {
                 case "BSBUILD":
                 case "IAS":
-                    var dev = _planRepository.GetPlanInfo("BSBUILD").BuildStartCount;
-                    var adp = _planRepository.GetPlanInfo("IAS").BuildStartCount;
+                    var dev = db.Plans.AsQueryable()
+                        .Where(p => p.BambooPlanName == "BSBUILD")
+                        .Select(p => p.BuildStartCount)
+                        .FirstOrDefault();
+                    var adp = db.Plans.AsQueryable()
+                        .Where(p => p.BambooPlanName == "IAS")
+                        .Select(p => p.BuildStartCount)
+                        .FirstOrDefault();
                     if (dev != adp)
                     {
                         WriteMessageToMainChannel($"Стенды не работают - идет сборка");
                     }
-
                     break;
                 case "DIS":
                     WriteMessageToMainChannel("Тестовый план начат");
@@ -63,23 +84,37 @@ namespace TosPlugin
                     WriteMessageToRelatedChannel("STBS", "Стенд security не работает - идёт сборка");
                     break;
             }
-
+            tr.Commit();
             return Task.CompletedTask;
         }
 
         public override Task BuildEnd(BambooBuildModel buildModel)
         {
+            var res = Policy
+                .Handle<SqliteException>()
+                .WaitAndRetry(3, x => TimeSpan.FromSeconds(2))
+                .Execute(() => BuildEndFunction(buildModel));
+            return res;
+        }
+
+        private Task BuildEndFunction(BambooBuildModel buildModel)
+        {
             var planName = buildModel.Build.BuildResultKey.Split("-")[1];
-            var plan = _planRepository.GetPlanInfo(planName);
+            
+            using var db = _serviceProvider.GetService<MainContext>();
+            using var tr = db.Database.BeginTransaction(IsolationLevel.Serializable);
+            
+            var plan = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == planName);
             if (plan == null)
             {
+                tr.Commit();
                 _logger.LogInformation($"План {planName} не отслеживается системой");
                 WriteMessageToMainChannel($"Сборка плана {planName} окончена");
                 return Task.CompletedTask;
             }
 
             plan.BuildEndCount += 1;
-            _planRepository.UpdatePlan(plan);
+            db.SaveChanges();
 
             _logger.LogInformation($"Получена команда об окончании сборки плана {planName}");
 
@@ -87,11 +122,17 @@ namespace TosPlugin
             {
                 case "BSBUILD":
                 case "IAS":
-                    var dev = _planRepository.GetPlanInfo("BSBUILD").BuildEndCount;
-                    var adp = _planRepository.GetPlanInfo("IAS").BuildEndCount;
+                    var dev = db.Plans.AsQueryable()
+                        .Where(p => p.BambooPlanName == "BSBUILD")
+                        .Select(p => p.BuildEndCount)
+                        .FirstOrDefault();
+                    var adp = db.Plans.AsQueryable()
+                        .Where(p => p.BambooPlanName == "IAS")
+                        .Select(p => p.BuildEndCount)
+                        .FirstOrDefault();
                     if (adp == dev)
                     {
-                        SendCommits();
+                        SendCommits(db);
                     }
                     break;
                 case "WEBSTEND":
@@ -115,10 +156,11 @@ namespace TosPlugin
                     break;
             }
 
+            tr.Commit();
             return Task.CompletedTask;
         }
 
-        private void SendCommits()
+        private void SendCommits(MainContext db)
         {
             var planInfo = _bambooBuildPlanService.GetPlanBuilds("BSBUILD").First();
             if (planInfo.SuccessfulTestCount == 0 && planInfo.SkippedTestCount == 0 && planInfo.FailedTestCount == 0)
@@ -127,11 +169,11 @@ namespace TosPlugin
                 return;
             }
 
-            var webPlan = _planRepository.GetPlanInfo("WEBSTEND");
+            var webPlan = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == "WEBSTEND");
             var webEndCount = webPlan.BuildEndCount;
             webPlan.BuildStartCount = 0;
             webPlan.BuildEndCount = 0;
-            _planRepository.UpdatePlan(webPlan);
+            db.SaveChanges();
             var commits = new List<JiraIssue>(planInfo.JiraIssues);
             if (webEndCount > 0)
             {
@@ -155,8 +197,8 @@ namespace TosPlugin
                 }
             });
 
-            var devStend = _planRepository.GetPlanInfo("BSBUILD");
-            var adpTestStend = _planRepository.GetPlanInfo("IAS");
+            var devStend = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == "BSBUILD");
+            var adpTestStend = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == "IAS");
             if (!string.IsNullOrEmpty(devStend.PreviousCommits))
             {
                 var prevCommits = JsonConvert.DeserializeObject<List<JiraIssue>>(devStend.PreviousCommits);
@@ -165,8 +207,7 @@ namespace TosPlugin
             var commitsJson = JsonConvert.SerializeObject(commits);
             devStend.PreviousCommits = commitsJson;
             adpTestStend.PreviousCommits = commitsJson;
-            _planRepository.UpdatePlan(devStend);
-            _planRepository.UpdatePlan(adpTestStend);
+            db.SaveChanges();
             string message;
             if (commits.Any())
             {

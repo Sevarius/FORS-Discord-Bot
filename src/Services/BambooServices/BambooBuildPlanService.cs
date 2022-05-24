@@ -40,27 +40,6 @@ namespace BambooServices
             _project = _repository.GetBambooProjectName();
         }
 
-        public List<JiraIssue> GetCommitsForAllPlans()
-        {
-            var plans = _repository.GetBambooPlans();
-
-            if (plans == null || !plans.Any())
-            {
-                throw new ApplicationException($"Для плагина {_plugin} не были найдены планы сборок");
-            }
-            
-            var result = new HashSet<JiraIssue>();
-            foreach (var plan in plans)
-            {
-                foreach (var commit in GetCommitsForPlan(plan))
-                {
-                    result.Add(commit);
-                }
-            }
-
-            return result.ToList();
-        }
-        
         public List<JiraIssue> GetCommitsForPlan(string planName, int count = 1, int start = 0)
         {
             if (string.IsNullOrEmpty(planName))
