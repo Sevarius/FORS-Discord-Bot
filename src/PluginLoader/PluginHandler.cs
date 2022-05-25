@@ -148,7 +148,7 @@ namespace PluginLoader
                         _logger.LogInformation(
                             $"Непосредственный вызов команды начала сборки плана {planName} для плагина {_pluginName}");
                         var res = bambooAnalyzer.BuildStart(planName);
-                        var executedInTime = res.Wait(TimeSpan.FromMinutes(5));
+                        var executedInTime = res.Wait(TimeSpan.FromMinutes(2));
                         if (!executedInTime)
                         {
                             var message =
@@ -197,7 +197,7 @@ namespace PluginLoader
                         _logger.LogInformation(
                             $"Непосредственный вызов команды окончания сборки плана для плагина {_pluginName}\nАргументы вызова функции:{JsonConvert.SerializeObject(buildModel)}");
                         var res = bambooAnalyzer.BuildEnd(buildModel);
-                        var executedInTime = res.Wait(TimeSpan.FromSeconds(5));
+                        var executedInTime = res.Wait(TimeSpan.FromMinutes(2));
                         if (!executedInTime)
                         {
                             var message =

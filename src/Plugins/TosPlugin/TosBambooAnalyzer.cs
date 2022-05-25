@@ -8,6 +8,7 @@ using Contract.Bamboo;
 using Contract.Interfaces;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -33,17 +34,8 @@ namespace TosPlugin
 
         public override Task BuildStart(string planName)
         {
-            var res = Policy
-                .Handle<SqliteException>()
-                .WaitAndRetry(3, x => TimeSpan.FromSeconds(2))
-                .Execute(() => BuildStartFunction(planName));
-            return res;
-        }
-
-        private Task BuildStartFunction(string planName)
-        {
             using var db = _serviceProvider.GetService<MainContext>();
-            using var tr = db.Database.BeginTransaction(IsolationLevel.Serializable);
+            using var tr = CreateTransaction(db, IsolationLevel.Serializable);
             var plan = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == planName);
 
             if (plan == null)
@@ -90,19 +82,10 @@ namespace TosPlugin
 
         public override Task BuildEnd(BambooBuildModel buildModel)
         {
-            var res = Policy
-                .Handle<SqliteException>()
-                .WaitAndRetry(3, x => TimeSpan.FromSeconds(2))
-                .Execute(() => BuildEndFunction(buildModel));
-            return res;
-        }
-
-        private Task BuildEndFunction(BambooBuildModel buildModel)
-        {
             var planName = buildModel.Build.BuildResultKey.Split("-")[1];
             
             using var db = _serviceProvider.GetService<MainContext>();
-            using var tr = db.Database.BeginTransaction(IsolationLevel.Serializable);
+            using var tr = CreateTransaction(db, IsolationLevel.Serializable);
             
             var plan = db.Plans.AsQueryable().FirstOrDefault(p => p.BambooPlanName == planName);
             if (plan == null)
@@ -327,6 +310,16 @@ namespace TosPlugin
                 message = $"Количество упавших тестов: {totalFailedTestCount}";
                 WriteMessageToMainChannel(message);
             }
+        }
+
+        private IDbContextTransaction CreateTransaction(DbContext db, IsolationLevel isolationLevel)
+        {
+            var tr = Policy
+                .Handle<SqliteException>(e => e.SqliteErrorCode == 5)
+                .WaitAndRetry(3, x => TimeSpan.FromSeconds(2))
+                .Execute(() => db.Database.BeginTransaction(isolationLevel));
+
+            return tr;
         }
     }
 }
